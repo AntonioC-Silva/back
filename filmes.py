@@ -1,6 +1,7 @@
 import banco
 import time
 import random
+import datetime
 
 def segundos_para_tempo_str(segundos):
     if not isinstance(segundos, int):
@@ -82,7 +83,7 @@ def adicionar_filme_pendente(dados):
 def buscar_filmes_aprovados():
     query = """
         select 
-            f.id_filme, f.titulo, f.poster, f.ano, f.sinopse,
+            f.id_filme, f.titulo, f.poster, f.ano, f.sinopse, f.elenco,
             d.nome as diretor_nome, d.sobrenome as diretor_sobrenome,
             group_concat(distinct g.tipo separator ', ') as generos
         from filme f
@@ -163,13 +164,13 @@ def aprovar_filme_pendente(id_pendente):
         id_diretor = buscar_ou_criar_id(cursor, 'diretor', filme_pendente['diretor_nome'])
 
         sql_filme = """
-            insert into filme (titulo, orcamento, id_diretor, tempo_de_duracao, ano, poster, sinopse)
-            values (%s, %s, %s, %s, %s, %s, %s)
+            insert into filme (titulo, orcamento, id_diretor, tempo_de_duracao, ano, poster, sinopse, elenco)
+            values (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         valores_filme = (
             filme_pendente['titulo'], filme_pendente['orcamento'], id_diretor,
             tempo_de_duracao_str, filme_pendente['ano'], filme_pendente['poster'],
-            filme_pendente['sinopse']
+            filme_pendente['sinopse'], filme_pendente['elenco_string']
         )
         cursor.execute(sql_filme, valores_filme)
         id_filme_novo = cursor.lastrowid
@@ -203,3 +204,52 @@ def aprovar_filme_pendente(id_pendente):
     finally:
         cursor.close()
         conexao.close()
+
+def buscar_filme_por_id(id_filme):
+    query = """
+        SELECT 
+            f.id_filme, f.titulo, f.orcamento, f.tempo_de_duracao, f.ano, f.poster, f.sinopse, f.elenco,
+            CONCAT(d.nome, ' ', d.sobrenome) as diretor_nome,
+            GROUP_CONCAT(DISTINCT g.tipo SEPARATOR ', ') as generos
+        FROM filme f
+        LEFT JOIN diretor d ON f.id_diretor = d.id_diretor
+        LEFT JOIN filme_genero fg ON f.id_filme = fg.id_filme
+        LEFT JOIN genero g ON fg.id_genero = g.id_genero
+        WHERE f.id_filme = %s
+        GROUP BY f.id_filme
+    """
+    filme = banco.executar_query(query, (id_filme,), fetch_one=True)
+    if filme:
+        if isinstance(filme.get('tempo_de_duracao'), datetime.timedelta):
+            total_seg = int(filme['tempo_de_duracao'].total_seconds())
+            filme['tempo_de_duracao'] = f"{total_seg // 3600:02d}:{(total_seg % 3600) // 60:02d}:{total_seg % 60:02d}"
+        
+        return {"sucesso": True, "filme": filme}, 200
+    else:
+        return {"sucesso": False, "erro": "Filme não encontrado"}, 404
+
+def atualizar_filme(id_filme, dados):
+    try:
+        query = """
+            UPDATE filme 
+            SET 
+                titulo = %s, 
+                sinopse = %s, 
+                elenco = %s, 
+                poster = %s, 
+                ano = %s
+            WHERE id_filme = %s
+        """
+        valores = (
+            dados.get('titulo'),
+            dados.get('sinopse'),
+            dados.get('elenco'),
+            dados.get('poster'),
+            dados.get('ano'),
+            id_filme
+        )
+        banco.executar_query(query, valores, commit=True)
+        return {"sucesso": True, "mensagem": "Filme atualizado com sucesso"}, 200
+    except Exception as e:
+        print(f"Erro em atualizar_filme: {e}")
+        return {"sucesso": False, "erro": str(e)}, 500

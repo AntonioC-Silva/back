@@ -72,6 +72,17 @@ def rota_aprovar_filme(id_pendente):
     resposta, status_code = filmes.aprovar_filme_pendente(id_pendente)
     return jsonify(resposta), status_code
 
+@app.route('/api/filme/<int:id_filme>', methods=['GET'])
+def rota_buscar_filme_unico(id_filme):
+    resposta, status_code = filmes.buscar_filme_por_id(id_filme)
+    return jsonify(resposta), status_code
+
+@app.route('/api/filme/<int:id_filme>', methods=['PUT'])
+def rota_atualizar_filme(id_filme):
+    dados = request.get_json()
+    resposta, status_code = filmes.atualizar_filme(id_filme, dados)
+    return jsonify(resposta), status_code
+
 @app.route('/', defaults={'caminho': ''})
 @app.route('/<path:caminho>')
 def servir_frontend(caminho):
