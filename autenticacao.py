@@ -3,36 +3,50 @@ import banco
 
 def registrar_usuario(usuario, senha):
     if not usuario or not senha:
-        return {"sucesso": False, "erro": "Usuário e senha são obrigatórios"}, 400
+        return {"sucesso": False, "erro": "usuário e senha são obrigatórios"}, 400
     
-    query_verificacao = "SELECT * FROM usuario WHERE nome = %s"
+    query_verificacao = "select * from usuario where nome = %s"
     if banco.executar_query(query_verificacao, (usuario,), fetch_one=True):
-        return {"sucesso": False, "erro": "Usuário já existe"}, 409
+        return {"sucesso": False, "erro": "usuário já existe"}, 409
         
     senha_hash = generate_password_hash(senha)
     
-    query_insercao = "INSERT INTO usuario (nome, senha) VALUES (%s, %s)"
+    query_insercao = "insert into usuario (nome, senha) values (%s, %s)"
     id_usuario = banco.executar_query(query_insercao, (usuario, senha_hash), commit=True)
     
     if id_usuario:
         return {"sucesso": True, "id_usuario": id_usuario}, 201
     else:
-        return {"sucesso": False, "erro": "Erro ao registrar usuário"}, 500
+        return {"sucesso": False, "erro": "erro ao registrar usuário"}, 500
 
 def logar_usuario(usuario, senha):
     if not usuario or not senha:
-        return {"sucesso": False, "erro": "Usuário e senha são obrigatórios"}, 400
+        return {"sucesso": False, "erro": "usuário e senha são obrigatórios"}, 400
         
-    query = "SELECT * FROM usuario WHERE nome = %s"
-    usuario_db = banco.executar_query(query, (usuario,), fetch_one=True)
+    query_usuario = "select * from usuario where nome = %s"
+    usuario_comum = banco.executar_query(query_usuario, (usuario,), fetch_one=True)
     
-    if usuario_db and check_password_hash(usuario_db['senha'], senha):
+    if usuario_comum and check_password_hash(usuario_comum['senha'], senha):
         return {
             "sucesso": True, 
             "usuario": {
-                "id": usuario_db['id_usuario'], 
-                "nome": usuario_db['nome']
-            }
+                "id": usuario_comum['id_usuario'], 
+                "nome": usuario_comum['nome']
+            },
+            "tipo": "comum"
         }, 200
-    else:
-        return {"sucesso": False, "erro": "Usuário ou senha inválidos"}, 401
+
+    query_adm = "select * from adm where nome = %s"
+    usuario_adm = banco.executar_query(query_adm, (usuario,), fetch_one=True)
+    
+    if usuario_adm and usuario_adm['senha'] == senha:
+        return {
+            "sucesso": True, 
+            "usuario": {
+                "id": usuario_adm['id_adm'], 
+                "nome": usuario_adm['nome']
+            },
+            "tipo": "adm"
+        }, 200
+    
+    return {"sucesso": False, "erro": "usuário ou senha inválidos"}, 401

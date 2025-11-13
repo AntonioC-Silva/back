@@ -5,7 +5,7 @@ import json
 CONFIG_BANCO = {
     'host': "localhost",
     'user': "root",
-    'password': "senai", 
+    'password': "root", 
     'database': "webserver"
 }
 
